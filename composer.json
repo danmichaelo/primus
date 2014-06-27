@@ -1,0 +1,15 @@
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/BCLibraries/primo-services"
+        }
+    ],
+    "require": {
+        "bclibraries/primo-services" : "master",
+        "danmichaelo/quitesimplexmlelement": "dev-master",
+        "jms/serializer": "dev-master",
+        "sabre/xml": "dev-master"
+    },
+    "minimum-stability": "dev"
+}

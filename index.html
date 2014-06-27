@@ -1,0 +1,104 @@
+
+<!DOCTYPE html>
+<html lang="en" ng-app="app">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Primus</title>
+
+  <!-- Latest compiled and minified CSS -->
+  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+
+  <!-- Optional theme -->
+  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
+
+  <!-- Font Awesome -->
+  <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.13/angular.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.13/angular-sanitize.min.js"></script>
+  <script src="app.js"></script>
+
+</head>
+<body>
+
+  <div class="container" ng-controller="AppCtrl">
+
+    <h1>primus</h1>
+    <div style="color: #999; margin-bottom: 1em;">
+      Søk mot Primo "Brief Search" 
+    </div>
+
+    <form role="form" ng-submit="search()" style="margin-bottom:2em;">
+      <div class="form-group">
+        <label for="inputKeyword" class="sr-only">Søkeord</label>
+        <input ng-model="query" type="text" class="form-control" id="inputKeyword" placeholder="Søkeord">
+      </div>
+      <div>
+        Hvor vil du søke?
+        <label>
+          <input type="radio" ng-model="idx" value="rt"> Realfagstermer
+        </label>
+        <label>
+          <input type="radio" ng-model="idx" value="humord"> HUMORD
+        </label>
+        <label>
+          <input type="radio" ng-model="idx" value="villvest"> Vet ikke helt egentlig <small>(fritekstsøk)</small>
+        </label>
+      </div>
+      <button type="submit" class="btn btn-default" ng-disabled="busy">Søk</button>
+      <i class="fa fa-cog fa-spin" ng-show="busy" style="font-size:200%; vertical-align: middle; color: #666;"></i>
+    </form>
+
+    <div ng-show="!busy">
+      {{resultsCount}} treff
+    </div>
+    <div ng-show="resultsCount != 0">
+      <table class="table">
+
+        <tr ng-repeat="res in results">
+
+          <td>
+            <div ng-show="res.thumbnails.length != 0">
+              <img ng-src="{{res.thumbnails[0]}}">
+            </div> 
+            {{res.type}}
+          </td>
+          <td>
+            <a href="http://bibsys-primo.hosted.exlibrisgroup.com/primo_library/libweb/action/dlDisplay.do?vid=UBO&amp;docId=BIBSYS_ILS{{sourcerecordid}}" style="font-size:120%;">{{res.title}}</a>
+            <a href="http://ask.bibsys.no/ask/action/show?pid={{sourcerecordid}}&amp;kid=biblio">[Ask]</a><br> 
+            av: {{res.creator}}<br>
+            {{res.publisher}}, {{res.creationdate}}
+
+            <div ng-show="res.realfagstermer.length > 0">
+              <a href="http://ub.uio.no/om/realfagstermer">Realfagstermer</a>: <span ng-repeat="term in res.realfagstermer" style="margin:0 .5em .1em 0; padding: .05em .3em; border-radius: 3px; border:1px solid #CEE9F9; background: #F4F7F8; display:inline-block; font-size: 90%;">{{term}}</span>
+            </div>
+
+            <div ng-show="res.humord.length > 0">
+              Humord: <span ng-repeat="term in res.humord" style="margin:0 .5em .1em 0; padding: .05em .3em; border-radius: 3px; border:1px solid #CEE9F9; background: #F4F7F8; display:inline-block; font-size: 90%;">{{term}}</span>
+            </div>
+            
+            <div ng-show="res.tekord.length > 0">
+              Tekord: <span ng-repeat="term in res.tekord" style="margin:0 .5em .1em 0; padding: .05em .3em; border-radius: 3px; border:1px solid #CEE9F9; background: #F4F7F8; display:inline-block; font-size: 90%;">{{term}}</span>
+            </div>
+          </td>
+          <td>
+            <ul>
+              <li ng-repeat="lib in res.libraries">
+                {{lib.institution}}
+                {{lib.collection}}
+                {{lib.callNumber}}
+              </li>
+            </ul>
+          </td>
+          
+        </tr>
+
+      </table>
+    </div>
+
+  </div>
+
+</body> 
+</html>
