@@ -5,7 +5,113 @@ ini_set('display_errors', '1');
 
 require __DIR__ . '/vendor/autoload.php';
 use Danmichaelo\QuiteSimpleXMLElement\QuiteSimpleXMLElement;
-use Sabre\XML;
+
+function search($query) {
+	//$querySub = 'sub,contains,' . $searchTerm; // Alle emneord
+	//$query3 = 'lsr14,exact,' . $searchTerm; // HUMORD
+	//$query4 = 'lsr12,exact,' . $searchTerm; // TEKORD
+
+	$base_url = 'http://bibsys-primo.hosted.exlibrisgroup.com/PrimoWebServices/xservice/search/brief?';
+	$query = array(
+		'institution' => 'UBO',	  // Relevant for restricted scopes or for when searching against Primo Central
+		'query' => $query,
+		//'query_inc' => 'local20,exact,' . $searchTerm,
+		'onCampus' => 'true',	  // Relevant for restricted scopes
+								  // Men nøyaktig hva gjør den?
+		'indx' => 1,	  	// first record
+		'bulkSize' => 20, 	// number of records
+		'sortField' => 'scdate', // sort by date desc
+	//	'loc' => 'local,scope:(UBO)',
+	//	'loc' => 'adaptor,primo_central_multiple_fe',
+	);
+	$url = $base_url . http_build_query($query);
+	$result = file_get_contents($url);
+
+	$doc = new QuiteSimpleXMLElement($result);
+	$doc->registerXPathNamespace('p', 'http://www.exlibrisgroup.com/xsd/primo/primo_nm_bib');
+	$doc->registerXPathNamespace('s', 'http://www.exlibrisgroup.com/xsd/jaguar/search');
+
+	$result = $doc->first('/s:SEGMENTS/s:JAGROOT/s:RESULT');
+
+	if ($err = $result->first('s:ERROR')) {
+		echo json_encode(array(
+			'error' => $err->attr('MESSAGE')
+		));
+		exit;
+	}
+
+	$docset = $result->first('s:DOCSET');
+
+	$results = array(
+		'url' => $url,
+		'time' => $docset->attr('TOTAL_TIME'),
+		'hits' => $docset->attr('TOTALHITS'),
+		'docs' => array(),
+	);
+
+	$ignore_keys = array('availlibrary', 'availinstitution', 'availpnx');
+	foreach ($docset->xpath('s:DOC') as $searDoc) {
+
+		$doc = array(
+			'libraries' => array(),
+			'thumbnails' => array(),
+		);
+
+		// CONTROL:
+
+		$searControl = $searDoc->first('p:PrimoNMBib/p:record/p:control');
+		$doc['sourcerecordid'] = $searControl->text('p:sourcerecordid');
+		$doc['sourceid'] = $searControl->text('p:sourceid');
+		$doc['realfagstermer'] = array();
+		$doc['humord'] = array();
+		$doc['tekord'] = array();
+
+		// DISPLAY:
+		foreach ($searDoc->first('p:PrimoNMBib/p:record/p:display')->children('p') as $kid) {
+			$n = $kid->getName();
+			$v = $kid->text();
+			if (!in_array($n, $ignore_keys)) {
+				$doc[$n] = $v;
+			}
+		}
+
+		// EMNEORD:
+		foreach ($searDoc->xpath('p:PrimoNMBib/p:record/p:search/p:lsr20') as $kid) {
+			$doc['realfagstermer'][] = $kid->text();
+		}
+		foreach ($searDoc->xpath('p:PrimoNMBib/p:record/p:search/p:lsr14') as $kid) {
+			$doc['humord'][] = $kid->text();
+		}
+		foreach ($searDoc->xpath('p:PrimoNMBib/p:record/p:search/p:lsr12') as $kid) {
+			$doc['tekord'][] = $kid->text();
+		}
+
+		// LIBRARIES:
+		foreach ($searDoc->xpath('s:LIBRARIES/s:LIBRARY') as $searLib) {
+			$lib = array();
+			foreach ($searLib->children('s') as $kid) {
+				$n = $kid->getName();
+				$v = $kid->text();
+				if (!in_array($n, $ignore_keys)) {
+					$lib[$n] = $v;
+				}
+			}
+			$doc['libraries'][] = $lib;
+		}
+
+		// LINKS:
+		foreach ($searDoc->xpath('s:LINKS/s:thumbnail') as $searThumb) {
+			$v = $searThumb->text();
+			if (!empty($v)) {
+				$doc['thumbnails'][] = $v;
+			}
+		}
+
+		$results['docs'][] = $doc;
+	}
+	return $results; 
+}
+
 
 /*
 
@@ -30,7 +136,6 @@ if (empty($searchTerm)) {
 	exit;
 }
 
-
 $idx = isset($_GET['idx']) ? $_GET['idx'] : 'villvest';
 
 if ($idx == 'rt') {
@@ -41,109 +146,9 @@ if ($idx == 'rt') {
 	$query = 'any,contains,' . $searchTerm;
 }
 
-//$querySub = 'sub,contains,' . $searchTerm; // Alle emneord
-//$query3 = 'lsr14,exact,' . $searchTerm; // HUMORD
-//$query4 = 'lsr12,exact,' . $searchTerm; // TEKORD
-
-$base_url = 'http://bibsys-primo.hosted.exlibrisgroup.com/PrimoWebServices/xservice/search/brief?';
-$query = array(
-	'institution' => 'UBO',	  // Relevant for restricted scopes or for when searching against Primo Central
-	'query' => $query,
-	//'query_inc' => 'local20,exact,' . $searchTerm,
-	'onCampus' => 'true',	  // Relevant for restricted scopes
-							  // Men nøyaktig hva gjør den?
-	'indx' => 1,	  	// first record
-	'bulkSize' => 20, 	// number of records
-//	'loc' => 'local,scope:(UBO)',
-//	'loc' => 'adaptor,primo_central_multiple_fe',
-);
-$url = $base_url . http_build_query($query);
-$result = file_get_contents($url);
-
-$doc = new QuiteSimpleXMLElement($result);
-$doc->registerXPathNamespace('p', 'http://www.exlibrisgroup.com/xsd/primo/primo_nm_bib');
-$doc->registerXPathNamespace('s', 'http://www.exlibrisgroup.com/xsd/jaguar/search');
 
 header("Content-Type: application/json; charset=utf-8");
-
-$result = $doc->first('/s:SEGMENTS/s:JAGROOT/s:RESULT');
-
-if ($err = $result->first('s:ERROR')) {
-	echo json_encode(array(
-		'error' => $err->attr('MESSAGE')
-	));
-	exit;
-}
-
-$docset = $result->first('s:DOCSET');
-
-$results = array(
-	'url' => $url,
-	'time' => $docset->attr('TOTAL_TIME'),
-	'hits' => $docset->attr('TOTALHITS'),
-	'docs' => array(),
-);
-
-$ignore_keys = array('availlibrary', 'availinstitution', 'availpnx');
-foreach ($docset->xpath('s:DOC') as $searDoc) {
-
-	$doc = array(
-		'libraries' => array(),
-		'thumbnails' => array(),
-	);
-
-	// CONTROL:
-
-	$searControl = $searDoc->first('p:PrimoNMBib/p:record/p:control');
-	$doc['sourcerecordid'] = $searControl->text('p:sourcerecordid');
-	$doc['sourceid'] = $searControl->text('p:sourceid');
-	$doc['realfagstermer'] = array();
-	$doc['humord'] = array();
-	$doc['tekord'] = array();
-
-	// DISPLAY:
-	foreach ($searDoc->first('p:PrimoNMBib/p:record/p:display')->children('p') as $kid) {
-		$n = $kid->getName();
-		$v = $kid->text();
-		if (!in_array($n, $ignore_keys)) {
-			$doc[$n] = $v;
-		}
-	}
-
-	// EMNEORD:
-	foreach ($searDoc->xpath('p:PrimoNMBib/p:record/p:search/p:lsr20') as $kid) {
-		$doc['realfagstermer'][] = $kid->text();
-	}
-	foreach ($searDoc->xpath('p:PrimoNMBib/p:record/p:search/p:lsr14') as $kid) {
-		$doc['humord'][] = $kid->text();
-	}
-	foreach ($searDoc->xpath('p:PrimoNMBib/p:record/p:search/p:lsr12') as $kid) {
-		$doc['tekord'][] = $kid->text();
-	}
-
-	// LIBRARIES:
-	foreach ($searDoc->xpath('s:LIBRARIES/s:LIBRARY') as $searLib) {
-		$lib = array();
-		foreach ($searLib->children('s') as $kid) {
-			$n = $kid->getName();
-			$v = $kid->text();
-			if (!in_array($n, $ignore_keys)) {
-				$lib[$n] = $v;
-			}
-		}
-		$doc['libraries'][] = $lib;
-	}
-
-	// LINKS:
-	foreach ($searDoc->xpath('s:LINKS/s:thumbnail') as $searThumb) {
-		$v = $searThumb->text();
-		if (!empty($v)) {
-			$doc['thumbnails'][] = $v;
-		}
-	}
-
-	$results['docs'][] = $doc;
-}
-
+$results = search($query);
 
 echo json_encode($results);
+

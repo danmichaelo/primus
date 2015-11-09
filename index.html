@@ -3,7 +3,7 @@
 <html lang="en" ng-app="app">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
 
   <title>Primus</title>
 
@@ -18,84 +18,156 @@
 
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.13/angular.min.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.13/angular-sanitize.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.13/angular-touch.min.js"></script>
+
+  <script src="bower_components/angular-bootstrap/ui-bootstrap-tpls.js"></script>
+
   <script src="app.js"></script>
+  <link href="app.css" rel="stylesheet">
 
 </head>
 <body>
 
   <div class="container" ng-controller="AppCtrl">
 
-    <h1>primus</h1>
-    <div style="color: #999; margin-bottom: 1em;">
+    <h1>Primus</h1>
+    <!--<div style="color: #999; margin-bottom: 1em;">
       Søk mot Primo "Brief Search" 
-    </div>
+    </div>-->
 
     <form role="form" ng-submit="search()" style="margin-bottom:2em;">
+
+      <div class="alert alert-danger" ng-show="error">{{ error }}</div>
+
       <div class="form-group">
         <label for="inputKeyword" class="sr-only">Søkeord</label>
-        <input ng-model="query" type="text" class="form-control" id="inputKeyword" placeholder="Søkeord">
+        <input ng-model="query.keyword" type="text" class="form-control" id="inputKeyword" placeholder="Søkeord">
       </div>
+
+      <!--
       <div>
         Hvor vil du søke?
         <label>
-          <input type="radio" ng-model="idx" value="rt"> Realfagstermer
+          <input type="radio" ng-model="query.idx" value="villvest"> Vet ikke helt egentlig <small>(fritekstsøk)</small>
         </label>
         <label>
-          <input type="radio" ng-model="idx" value="humord"> HUMORD
+          <input type="radio" ng-model="query.idx" value="rt"> Realfagstermer
         </label>
         <label>
-          <input type="radio" ng-model="idx" value="villvest"> Vet ikke helt egentlig <small>(fritekstsøk)</small>
+          <input type="radio" ng-model="query.idx" value="humord"> HUMORD
         </label>
       </div>
+      -->
+
+      Søk i <div class="btn-group">
+        <label class="btn btn-default" ng-model="query.scope" btn-radio="'ubo'">Bare UBO</label>
+        <label class="btn btn-default" ng-model="query.scope" btn-radio="'bibsys'">Norske fagbibliotek</label>
+      </div>
+
+      <!--
+      <div class="btn-group">
+        <label class="btn btn-default" ng-model="query.lang" btn-radio="'nor'">Norsk bokmål</label>
+        <label class="btn btn-default" ng-model="query.lang" btn-radio="'eng'">Engelsk</label>
+      </div>
+      -->
+      
+      
+<!--
+Søk i 
+      <label>
+        <input type="checkbox" ng-model="query.scope_ubo"> UBO
+      </label>
+      <label>
+        <input type="checkbox" ng-model="query.scope_bibsys"> BIBSYS
+      </label>
+-->
+<!--
+      <label>
+        <input type="checkbox" ng-model="query.scope_primo"> Primo Central
+      </label>
+
+      <label>
+        <input type="checkbox" ng-model="query.scope_duo"> Duo
+      </label>
+-->
+<!--
       <button type="submit" class="btn btn-default" ng-disabled="busy">Søk</button>
+-->
       <i class="fa fa-cog fa-spin" ng-show="busy" style="font-size:200%; vertical-align: middle; color: #666;"></i>
+
     </form>
 
-    <div ng-show="!busy">
-      {{resultsCount}} treff
+    <div ng-show="busy && wait_time">
+      Ventet {{ wait_time | number: 1 }} sekunder
     </div>
-    <div ng-show="resultsCount != 0">
-      <table class="table">
+    <div ng-show="!busy && wait_time && total_results !== undefined" style="padding-bottom:1em;">
+      {{total_results}} treff funnet på {{ wait_time | number: 1 }} sekunder. Viser {{ documents.length }}.
+    </div>
+    <div ng-show="total_results != 0" class="results" class="results" ng-class="{busy: busy}">
 
-        <tr ng-repeat="res in results">
 
-          <td>
-            <div ng-show="res.thumbnails.length != 0">
-              <img ng-src="{{res.thumbnails[0]}}">
-            </div> 
-            {{res.type}}
-          </td>
-          <td>
-            <a href="http://bibsys-primo.hosted.exlibrisgroup.com/primo_library/libweb/action/dlDisplay.do?vid=UBO&amp;docId=BIBSYS_ILS{{sourcerecordid}}" style="font-size:120%;">{{res.title}}</a>
-            <a href="http://ask.bibsys.no/ask/action/show?pid={{sourcerecordid}}&amp;kid=biblio">[Ask]</a><br> 
-            av: {{res.creator}}<br>
-            {{res.publisher}}, {{res.creationdate}}
+        <div ng-repeat="doc in documents" class="doc">
 
-            <div ng-show="res.realfagstermer.length > 0">
-              <a href="http://ub.uio.no/om/realfagstermer">Realfagstermer</a>: <span ng-repeat="term in res.realfagstermer" style="margin:0 .5em .1em 0; padding: .05em .3em; border-radius: 3px; border:1px solid #CEE9F9; background: #F4F7F8; display:inline-block; font-size: 90%;">{{term}}</span>
+            <h3>
+              <em>
+                <span ng-show="doc.versions > 1">{{ doc.title }}</span>
+                <!--  ng-href="http://bibsys-primo.hosted.exlibrisgroup.com/primo_library/libweb/action/dlDisplay.do?vid=UBO&amp;docId={{ doc.id }}" -->
+                <span ng-show="doc.versions <= 1">{{ doc.title }}</span>
+              </em>
+
+              <span ng-show="doc.creator_facet" style="font-size:90%;">
+                <span style="color:#888;">&nbsp;av</span>
+                <a class="creator" ng-repeat="creator in doc.creator_facet" ng-click="selectCreator(creator);">{{ creator }}</a>
+              </span>
+
+            </h3>
+
+            <span class="relevans">
+               Relevans: {{ doc.rank * 1000 | number : 3 }}
+            </span>
+
+<!--
+            <a href="http://ask.bibsys.no/ask/action/show?pid={{doc.bibsys_id}}&amp;kid=biblio">[Ask]</a>
+
+               Type: {{doc.type}}.
+-->
+            <editions work-id="{{ doc.frbrgroupid }}" work-versions="{{doc.versions}}"></editions>
+
+
+          <!--
+            <div>
+              
+              <span ng-show="doc.realfagstermer.length">
+                <span style="font-size:85%;">Realfagstermer:</span>
+                <span ng-repeat="term in doc.realfagstermer" class="term">{{term}}</span>
+              </span>
+
+              <span ng-show="doc.humord.length">
+                <span style="font-size:85%;">Humord:</span>
+                <span ng-repeat="term in doc.humord" class="term">{{term}}</span>
+              </span>
+              
+              <span ng-show="doc.tekord.length">
+                <span style="font-size:85%;">Tekord:</span>
+                <span ng-repeat="term in doc.tekord" class="term">{{term}}</span>
+              </span>
+
             </div>
+            -->
 
-            <div ng-show="res.humord.length > 0">
-              Humord: <span ng-repeat="term in res.humord" style="margin:0 .5em .1em 0; padding: .05em .3em; border-radius: 3px; border:1px solid #CEE9F9; background: #F4F7F8; display:inline-block; font-size: 90%;">{{term}}</span>
-            </div>
-            
-            <div ng-show="res.tekord.length > 0">
-              Tekord: <span ng-repeat="term in res.tekord" style="margin:0 .5em .1em 0; padding: .05em .3em; border-radius: 3px; border:1px solid #CEE9F9; background: #F4F7F8; display:inline-block; font-size: 90%;">{{term}}</span>
-            </div>
-          </td>
-          <td>
+            <div style="clear:both;"><!-- --></div>
+          </div>
+          <!--<td>
             <ul>
-              <li ng-repeat="lib in res.libraries">
+              <li ng-repeat="lib in doc.libraries">
                 {{lib.institution}}
                 {{lib.collection}}
                 {{lib.callNumber}}
               </li>
             </ul>
-          </td>
+          </td>-->
           
-        </tr>
 
-      </table>
     </div>
 
   </div>

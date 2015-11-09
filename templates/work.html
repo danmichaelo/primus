@@ -1,0 +1,44 @@
+<div ng-show="doc.versions > 1">
+	<em ng-show="!subdocs">Henter {{doc.versions}} utgaver</em>
+	<ul class="coverbox">
+		<li ng-repeat="subdoc in subdocs">
+            <a href="http://bibsys-primo.hosted.exlibrisgroup.com/primo_library/libweb/action/dlDisplay.do?vid=UBO&amp;docId={{subdoc.id}}"
+			   style="width:105px; float: left;"
+            >
+		        <cover></cover>
+		    </a>
+ 			<a href="http://bibsys-primo.hosted.exlibrisgroup.com/primo_library/libweb/action/dlDisplay.do?vid=UBO&amp;docId={{doc.id}}">
+		        <div>
+					{{subdoc.edition}}
+					{{subdoc.date}}
+					{{subdoc.getit[0].category == 'Online Resource' ? ' : E-bok' : ' : P-bok'}}
+				</div>
+            </a>
+            <div ng-repeat="lib in subdoc.librariesUreal" style="font-size:85%;" title="{{ lib.dokid }}">
+              {{ lib.collection }} {{ lib.callNumber }}
+	        </div>
+		</li>
+	</ul>
+</div>
+
+<div ng-show="doc.versions <= 1">
+	<ul class="coverbox">
+		<li>
+			<a href="http://bibsys-primo.hosted.exlibrisgroup.com/primo_library/libweb/action/dlDisplay.do?vid=UBO&amp;docId={{doc.id}}"
+			   style="width:105px; float: left;"
+            >
+		        <cover></cover>
+		    </a>
+ 			<a href="http://bibsys-primo.hosted.exlibrisgroup.com/primo_library/libweb/action/dlDisplay.do?vid=UBO&amp;docId={{doc.id}}">
+		        <div>
+					{{doc.edition}}
+					{{doc.date}} 
+					{{doc.getit[0].category == 'Online Resource' ? ' : E-bok' : ' : P-bok'}}
+				</div>
+			</a>
+            <div ng-repeat="lib in doc.librariesUreal" style="font-size:85%;" title="{{ lib.dokid }}">
+              {{ lib.collection }} {{ lib.callNumber }}
+	        </div>
+		</li>
+	</ul>
+</div>
